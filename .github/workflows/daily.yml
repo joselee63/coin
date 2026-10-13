@@ -1,0 +1,49 @@
+name: daily-build
+
+on:
+  schedule:
+    - cron: "7 9 * * *"             # 매일 09:07 — 일봉이 UTC 00:00(한국 09:00)에 마감된 직후
+      timezone: "Asia/Seoul"
+  workflow_dispatch:                 # 수동 실행 (Actions 탭 버튼 · 웹페이지 '업데이트' 버튼)
+
+permissions:
+  contents: write                    # gh-pages 브랜치에 결과를 올리기 위해 필요
+
+concurrency:
+  group: daily-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 시세 수집 · 차트 생성
+        id: build
+        env:
+          TRIGGER: ${{ github.event_name }}
+        run: python build_site.py
+
+      - name: gh-pages 브랜치에 배포
+        if: steps.build.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_DATE: ${{ steps.build.outputs.ref_date }}
+        run: |
+          cd site
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "update ${REF_DATE} (${{ github.event_name }})"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
