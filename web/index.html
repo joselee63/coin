@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>암호화폐 섹터 차트</title>
+<style>
+:root{
+  --bg:#f4f5f7; --fg:#1d2127; --muted:#6b7280; --line:#e2e5ea; --soft:#f1f3f5; --card:#ffffff;
+  --head:#eceff3; --zebra:#f9fafb; --hover:#eef3fb; --sorted:rgba(37,99,235,.055);
+  --accent:#1f2937; --accent-fg:#ffffff; --hoverline:#c5cbd4;
+  --up:#E5383B; --dn:#1D63D8; --ok:#16a34a; --warn:#d97706;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1114; --fg:#e7e9ec; --muted:#9aa1ab; --line:#2a2f36; --soft:#1c1f24; --card:#171a1e;
+         --head:#21252b; --zebra:#1b1e23; --hover:#1f2733; --sorted:rgba(96,165,250,.08);
+         --accent:#e7e9ec; --accent-fg:#121417; --hoverline:#4a515c;
+         --up:#ff5a5f; --dn:#4b8dff; --shadow:none; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  font-size:14px;line-height:1.45}
+a{color:inherit}
+.wrap{max-width:1840px;margin:0 auto;padding:0 18px 100px}
+
+/* ---------- 상단 바 ---------- */
+header{position:sticky;top:0;z-index:21;background:var(--card);border-bottom:1px solid var(--line)}
+.top{max-width:1840px;margin:0 auto;padding:11px 18px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.top h1{font-size:18px;margin:0;letter-spacing:-.2px}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;color:var(--muted);font-size:12.5px}
+.meta b{color:var(--fg);font-weight:600}
+.meta .upd b{font-size:13.5px}
+.tag{font-size:11px;padding:1px 6px;border-radius:9px;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
+.tag.live{color:var(--warn);border-color:rgba(217,119,6,.45);background:rgba(217,119,6,.08)}
+.sw{font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px;white-space:nowrap}
+.sw:hover{color:var(--fg);border-color:var(--hoverline)}
+.act{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:13px;cursor:pointer;border:0;border-radius:7px;
+  padding:7px 14px;background:var(--accent);color:var(--accent-fg)}
+.btn[disabled]{opacity:.5;cursor:default}
+.lnk{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;background:none;border:0;padding:0;font-family:inherit}
+.status{font-size:12.5px;color:var(--muted);display:none;align-items:center;gap:6px}
+.status.on{display:flex}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.status.run .dot{background:var(--warn);animation:pulse 1.2s infinite}
+.status.ok .dot{background:var(--ok)} .status.err .dot{background:var(--up)} .status.warn .dot{background:var(--warn)}
+.status.err{color:var(--up)}
+@keyframes pulse{50%{opacity:.25}}
+
+/* ---------- 탭 버튼 ---------- */
+.tabs{position:sticky;top:var(--hdr,0px);z-index:20;background:var(--card);border-bottom:1px solid var(--line);
+  box-shadow:0 2px 6px rgba(16,24,40,.04)}
+.tabs .in{max-width:1840px;margin:0 auto;padding:8px 18px;display:flex;gap:8px}
+.tab{font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--muted);
+  box-shadow:0 1px 1px rgba(16,24,40,.05);transition:background .15s,color .15s,border-color .15s}
+@media (hover:hover){ .tab:not(.on):hover{color:var(--fg);border-color:var(--hoverline);background:var(--soft)} }
+.tab:focus-visible{outline:2px solid var(--dn);outline-offset:2px}
+.tab svg{width:15px;height:15px;flex:none}
+.tab .n{font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px;background:var(--soft);color:var(--muted);min-width:22px;text-align:center}
+.tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.tab.on .n{background:rgba(255,255,255,.2);color:var(--accent-fg)}
+@media (prefers-color-scheme: dark){ .tab.on .n{background:rgba(0,0,0,.15)} }
+
+/* ---------- 카드(구역) ---------- */
+section,.csec,.cell{scroll-margin-top:var(--off,120px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin-top:18px}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:14px 18px 12px;border-bottom:1px solid var(--line)}
+.card-h h2{margin:0;font-size:16.5px;display:flex;align-items:center;gap:9px;letter-spacing:-.2px}
+.card-h h2::before{content:"";width:4px;height:18px;border-radius:2px;background:var(--mark,#64748b)}
+.card-h .sub{margin:0;flex-basis:100%;font-size:12px;color:var(--muted)}
+.card-h .side{margin-left:auto}
+.card-b{padding:14px 18px 18px}
+#sector{--mark:#6366f1} #result{--mark:#0ea5e9} #charts{--mark:#f59e0b}
+.load{padding:60px 0;text-align:center;color:var(--muted)}
+
+/* ---------- 표 공통 ---------- */
+.tbl{border-collapse:separate;border-spacing:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);background-color:var(--card)}
+.tbl thead th{background-color:var(--head);font-size:12.5px;font-weight:600;color:var(--fg)}
+.tbl tbody tr:nth-child(even) td{background-color:var(--zebra)}
+@media (hover:hover){ .tbl tbody tr:hover td{background-color:var(--hover)} }
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover{background-color:var(--hoverline)}
+@media (prefers-color-scheme: light){ .tbl th.sortable:hover{background-color:#e2e6ec} }
+.tbl .ar{display:inline-block;width:11px;margin-left:4px;font-size:10px;opacity:.3}
+.tbl th.sorted .ar{opacity:1;color:var(--fg)}
+.tbl td.sorted{background-image:linear-gradient(var(--sorted),var(--sorted))}
+.tbl th.sorted{box-shadow:inset 0 -2px 0 var(--fg)}
+.l{text-align:left !important}
+.d{color:var(--muted)}
+.na{opacity:.4}
+.b{font-size:11.5px;padding:1px 6px;border-radius:3px;white-space:nowrap;display:inline-block}
+.b.up{background:rgba(229,56,59,.13);color:var(--up)} .b.dn{background:rgba(29,99,216,.13);color:var(--dn)}
+.b.hot{background:rgba(217,119,6,.15);color:var(--warn)}
+a.go{text-decoration:underline dotted;text-decoration-color:var(--hoverline);text-underline-offset:3px;cursor:pointer}
+a.go:hover{text-decoration:underline;text-decoration-color:currentColor}
+.box{border:1px solid var(--line);border-radius:9px;overflow:auto}
+
+/* 섹터 강도 표 */
+.sect{width:100%}
+.sect th:first-child,.sect td:first-child{position:sticky;left:0;z-index:1;border-right:1px solid var(--line)}
+.sect td:first-child{font-weight:600}
+.sect td.v5{font-weight:600}
+.bc{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+.bt{position:relative;display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--soft)}
+.bt::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--hoverline)}
+.bt i{position:absolute;top:0;bottom:0;border-radius:4px}
+.bt i.p{left:50%;background:var(--up);opacity:.8}
+.bt i.n{right:50%;background:var(--dn);opacity:.8}
+#sectbox{max-width:1180px}
+
+/* 코인별 결과표 */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px}
+.bar input,.bar select,.flt input{font:inherit;font-size:12.5px;color:inherit;background:var(--card);
+  border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.bar .q{width:240px}
+.bar .sec{max-width:260px}
+.bar label{font-size:12.5px;display:flex;gap:4px;align-items:center}
+.obtn{font:inherit;font-size:12.5px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+.obtn:hover{border-color:var(--hoverline);background:var(--soft)}
+.bar .cnt{margin-left:auto;color:var(--muted);font-size:12.5px}
+.bar .cnt b{color:var(--fg)}
+.hint{font-size:11.5px;color:var(--muted);margin:0 0 8px}
+#tbox{max-height:min(660px,78vh)}
+#rtbl{width:100%}
+#rtbl thead th{position:sticky;top:0;z-index:2}
+#rtbl thead tr.f th{padding:4px 6px;background-color:var(--soft)}
+.flt input{width:58px;padding:2px 5px;display:block;margin:1px 0 1px auto}
+#rtbl th,#rtbl td{padding:7px 8px}
+#rtbl .ar{margin-left:2px;width:9px}
+#rtbl td.e{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#rtbl a.go{font-weight:600}
+
+/* 차트 */
+.csec{margin-top:26px;padding-top:12px;border-top:1px solid var(--line)}
+.csec:first-child{margin-top:0;padding-top:0;border-top:0}
+.csec h3{font-size:15.5px;margin:0 0 2px}
+.csec .sub{font-size:12px;color:var(--muted);margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}
+.cell .cap{font-size:13px;margin:2px 0 4px;line-height:1.5}
+.cell .cap .c{color:var(--muted)} .cell .cap .ds{color:var(--muted)}
+.cell img{width:100%;height:auto;aspect-ratio:900/486;display:block;border:1px solid var(--line);border-radius:6px;background:#fff}
+.cell.flash img{animation:flash 2s ease-out}
+@keyframes flash{0%,55%{box-shadow:0 0 0 3px var(--warn)}100%{box-shadow:0 0 0 3px rgba(217,119,6,0)}}
+.tbl tr.flash td{animation:rowflash 2s ease-out}
+@keyframes rowflash{0%,50%{background-color:rgba(217,119,6,.22)}}
+.jsel{font:inherit;font-size:12.5px;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+footer{margin-top:22px;font-size:12px;color:var(--muted)}
+footer ul{margin:4px 0 10px;padding-left:18px}
+
+/* 결과표로 돌아가기 버튼 */
+.backbtn{position:fixed;left:50%;bottom:22px;z-index:40;display:flex;align-items:center;
+  background:var(--accent);color:var(--accent-fg);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.28);
+  opacity:0;pointer-events:none;transform:translate(-50%,16px);transition:opacity .2s,transform .2s}
+.backbtn.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.backbtn button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.backbtn .go-back{font-size:14px;font-weight:600;padding:11px 8px 11px 20px;white-space:nowrap}
+.backbtn .x{font-size:16px;line-height:1;padding:11px 16px 11px 10px;opacity:.65}
+.backbtn .x:hover{opacity:1}
+
+@media (max-width:1420px){
+  #rtbl th,#rtbl td{padding:7px 6px}
+  #rtbl td.e{max-width:112px}
+  .flt input{width:54px}
+}
+@media (max-width:900px){
+  header{position:static}
+  .tabs .in{padding:7px 10px;gap:6px}
+  .tab{flex:1;padding:8px 4px;font-size:13px;gap:5px}
+  .tab .n{display:none}
+  .wrap{padding:0 10px 100px}
+  .card-h{padding:12px 12px 10px}
+  .card-b{padding:12px 10px 14px}
+  .sect td:first-child{white-space:normal;min-width:112px;max-width:140px}
+  .tbl th,.tbl td{padding:7px 8px}
+  .bt{width:46px}
+  .grid{grid-template-columns:1fr}
+  .act{margin-left:0}
+  .bar .q{width:100%}
+  .backbtn{bottom:16px}
+}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <div class="top">
+    <h1>암호화폐 섹터 차트</h1>
+    <a class="sw" href="../" title="한국 증시 섹터 차트로 이동">주식 차트 →</a>
+    <div class="meta" id="meta"><span>불러오는 중…</span></div>
+    <div class="act">
+      <span class="status" id="status"><span class="dot"></span><span id="stxt"></span></span>
+      <button class="btn" id="upd" type="button">↻ 업데이트</button>
+      <button class="lnk" id="tokreset" type="button" style="display:none">토큰 변경</button>
+    </div>
+  </div>
+</header>
+<nav class="tabs" id="tabs" aria-label="구역 이동">
+  <div class="in">
+    <button class="tab on" type="button" data-t="sector">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 14h12M4 11V7M8 11V3M12 11V8"/></svg>
+      섹터 강도 <span class="n" id="n-sector"></span></button>
+    <button class="tab" type="button" data-t="result">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M2 10h12M6 6.5v7"/></svg>
+      코인별 결과표 <span class="n" id="n-result"></span></button>
+    <button class="tab" type="button" data-t="charts">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 2v12M12 3v11M8 1.5v13"/><rect x="2.8" y="5" width="2.4" height="5" rx=".5" fill="currentColor" stroke="none"/><rect x="6.8" y="3.5" width="2.4" height="5.5" rx=".5" fill="currentColor" stroke="none"/><rect x="10.8" y="6" width="2.4" height="5" rx=".5" fill="currentColor" stroke="none"/></svg>
+      섹터별 차트 <span class="n" id="n-charts"></span></button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="loading" class="load">데이터를 불러오는 중…</div>
+
+  <section id="sector" class="card" style="display:none">
+    <div class="card-h">
+      <h2>섹터 강도</h2>
+      <p class="sub">제목 클릭 = 정렬(다시 클릭하면 반대로) · 섹션 이름 클릭 = 결과표에서 그 섹션만 보기 · 거래대금 = 최근 일봉 달러 거래대금($M = 백만 달러) · 거래대금 상위(자동) 섹션 제외</p>
+    </div>
+    <div class="card-b"><div class="box" id="sectbox"><table class="tbl sect" id="secttbl"><thead></thead><tbody></tbody></table></div></div>
+  </section>
+
+  <section id="result" class="card" style="display:none">
+    <div class="card-h">
+      <h2>코인별 결과표</h2>
+      <p class="sub">숫자 칸 아래 입력창: 위 = 최소, 아래 = 최대 (예: 7일% 최소 10, 거래량배수 최소 2) · 제목 클릭 = 정렬 · 코인 이름 클릭 = 차트로 이동</p>
+    </div>
+    <div class="card-b">
+      <div class="bar">
+        <input class="q" id="q" type="search" placeholder="코인·심볼·설명 검색 (예: 밈, SOL)">
+        <select class="sec" id="fsec"><option value="">섹션 전체</option></select>
+        <select id="ftr"><option value="">추세선 전체</option><option>저항선 돌파</option><option>지지선 이탈</option><option>추세선 안</option></select>
+        <label><input id="toponly" type="checkbox"> 거래대금 상위만</label>
+        <button class="obtn" id="freset" type="button">필터 초기화</button>
+        <span class="cnt" id="cnt"></span>
+      </div>
+      <div class="box" id="tbox"><table class="tbl" id="rtbl"><thead><tr class="h"></tr><tr class="f flt"></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="charts" class="card" style="display:none">
+    <div class="card-h">
+      <h2>섹터별 차트</h2>
+      <select class="jsel side" id="jump"><option value="">섹션으로 이동…</option></select>
+      <p class="sub">캔들 · 이동평균 · 자동 추세선(실선 장기 / 점선 단기)</p>
+    </div>
+    <div class="card-b"><div id="chartbox"></div></div>
+  </section>
+
+  <footer id="foot" style="display:none"></footer>
+</div>
+
+<div class="backbtn" id="backbtn" role="group" aria-label="이전 위치로 돌아가기">
+  <button class="go-back" id="goback" type="button">↩ 결과표로 돌아가기</button>
+  <button class="x" id="backx" type="button" aria-label="닫기">✕</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var TOKEN_KEY = "krsc_gh_token";
+  var COLS = [
+    ["섹션","s"],["코인","s"],["심볼","s"],["설명","s"],["가격($)","price"],
+    ["1일%","pct"],["7일%","pct"],["30일%","pct"],["1년고가대비%","pct"],
+    ["MA20이격%","pct"],["거래대금($M)","usd"],["거래량배수","x"],["추세선","s"]
+  ];
+  var SCOLS = [   // 섹터 강도 표: [키, 제목, 형식]
+    ["섹션","섹션","s"],["평균 7일%","평균 7일%","bar"],["평균 1일%","평균 1일%","pct"],["평균 30일%","평균 30일%","pct"],
+    ["거래대금 합($M)","거래대금 합($M)","usd"],["_ma20","MA20 위","ratio"],["저항돌파","저항 돌파","n"],["지지이탈","지지 이탈","n"]
+  ];
+  var TEXT_KEYS = /^(섹션|코인|심볼|설명|추세선)$/;
+  var SECTIONS = ["sector", "result", "charts"];
+  var S = null;                                  // 현재 데이터
+  var sortKey = null, sortDir = -1;              // 결과표 정렬
+  var secKey = "평균 7일%", secDir = -1;          // 섹터 강도 표 정렬 (기본: 7일% 높은 순)
+  var busy = false;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function comma(v, d){ var p = v.toFixed(d).split("."); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return p.join("."); }
+  function now(){ return new Date().getTime(); }
+  function pct(v, suffix){
+    if (v === null || v === undefined) return '<span class="na">-</span>';
+    v = Math.round(v * 100) / 100;            // -0.00 방지
+    var col = v > 0 ? "var(--up)" : (v < 0 ? "var(--dn)" : "inherit");
+    return '<span style="color:' + col + '">' + (v > 0 ? "+" : "") + v.toFixed(2) + (suffix || "") + "</span>";
+  }
+  function isNum(t){ return t !== "s"; }
+  function priceDec(p){                            // 유효숫자 약 5자리: 112,345 / 172.34 / 0.000012340
+    if (!p || p <= 0 || !isFinite(p)) return 2;
+    return Math.min(10, Math.max(0, 5 - Math.floor(Math.log(p) / Math.LN10) - 1));
+  }
+  function fmtPrice(p){ return comma(p, priceDec(p)); }
+  function fmtUsd(v){ return comma(v, v >= 100 ? 0 : (v >= 10 ? 1 : 2)); }
+  function mmss(ms){ var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+  function cmp(x, y, dir){
+    var nx = (x === null || x === undefined), ny = (y === null || y === undefined);
+    if (nx || ny) return nx && ny ? 0 : (nx ? 1 : -1);          // 빈 값은 항상 맨 아래
+    if (typeof x === "string") return dir * x.localeCompare(y, "ko");
+    return dir * (x - y);
+  }
+  function restartAnim(el, cls){ if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+  // ---------- 데이터 로드 (data/summary.js, 캐시 우회) ----------
+  function loadSummary(cb){
+    var done = false;
+    var sc = document.createElement("script");
+    window.__krsc_summary = function(d){ done = true; cb(d); };
+    sc.src = "data/summary.js?t=" + now();
+    sc.onerror = function(){ if (!done) { done = true; cb(null); } };
+    document.getElementsByTagName("head")[0].appendChild(sc);
+    setTimeout(function(){ if (sc.parentNode) sc.parentNode.removeChild(sc); }, 20000);
+  }
+
+  // ---------- 상단 고정 영역 높이 → 스크롤 위치 보정값 ----------
+  function hdrSticky(){ return window.getComputedStyle($("hdr")).position === "sticky"; }
+  function topOffset(){ return (hdrSticky() ? $("hdr").offsetHeight : 0) + $("tabs").offsetHeight + 12; }
+  function setOffsets(){
+    var root = document.documentElement.style;
+    root.setProperty("--hdr", (hdrSticky() ? $("hdr").offsetHeight : 0) + "px");
+    root.setProperty("--off", topOffset() + "px");
+  }
+
+  // ---------- 탭 버튼 ----------
+  function setTab(id){
+    var ts = document.querySelectorAll(".tab");
+    for (var i = 0; i < ts.length; i++) {
+      var on = ts[i].getAttribute("data-t") === id;
+      ts[i].classList.toggle("on", on);
+      if (on) ts[i].setAttribute("aria-current", "true"); else ts[i].removeAttribute("aria-current");
+    }
+  }
+  var spyLock = 0;
+  function spy(){
+    if (!S || now() < spyLock) return;
+    var lim = topOffset() + 40, cur = SECTIONS[0];
+    for (var i = 0; i < SECTIONS.length; i++) {
+      var el = $(SECTIONS[i]);
+      if (el.offsetParent !== null && el.getBoundingClientRect().top <= lim) cur = SECTIONS[i];
+    }
+    setTab(cur);
+  }
+  var spyQueued = false;
+  function onScroll(){
+    if (spyQueued) return;
+    spyQueued = true;
+    (window.requestAnimationFrame || setTimeout)(function(){ spyQueued = false; spy(); });
+  }
+  function goSection(id){
+    var el = $(id); if (!el) return;
+    setTab(id); spyLock = now() + 900;            // 부드러운 스크롤 중에는 표시가 흔들리지 않게
+    try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) { el.scrollIntoView(); }
+  }
+
+  // ---------- 상단 메타 ----------
+  function renderMeta(){
+    var m = S.meta;
+    var trig = m.trigger === "schedule" ? "자동" : (m.trigger === "workflow_dispatch" ? "수동" : "로컬");
+    var nf = (m.failed || []).length;
+    var nm = (m.missing || []).length;
+    var h = '<span class="upd">업데이트 완료 <b>' + esc(m.updated_at) + '</b> <span class="tag">' + trig + '</span></span>' +
+            '<span>기준 일봉 <b>' + esc(m.candle_date) + '</b> ' +
+            (m.live ? '<span class="tag live" title="오늘 09:00(KST)에 시작한 일봉 — 아직 진행 중">진행 중</span>'
+                    : '<span class="tag" title="UTC 00:00(한국 09:00)에 마감된 일봉">마감</span>') + '</span>' +
+            '<span>' + m.n_ok + '개 코인' + (nf || nm ? ' · <a href="#foot">' + (nf ? "실패 " + nf : "") + (nf && nm ? " · " : "") + (nm ? "상장 없음 " + nm : "") + '</a>' : '') + '</span>' +
+            '<span>자동 업데이트 매일 09:07</span>';
+    $("meta").innerHTML = h;
+    document.title = "암호화폐 섹터 차트 · " + m.candle_date;
+  }
+
+  // ---------- 섹터 강도 (정렬 가능) ----------
+  function secVal(r, k){
+    if (k === "_ma20") return r["코인수"] ? r["MA20위"] / r["코인수"] : null;
+    return r[k];
+  }
+  function renderSector(){
+    var rows = (S.sector_table || []).slice(), i, j;
+    rows.sort(function(a, b){ return cmp(secVal(a, secKey), secVal(b, secKey), secDir); });
+    var mx = 0;
+    for (i = 0; i < rows.length; i++) mx = Math.max(mx, Math.abs(rows[i]["평균 7일%"] || 0));
+    var h = "<tr>";
+    for (j = 0; j < SCOLS.length; j++) {
+      var on = SCOLS[j][0] === secKey;
+      h += '<th class="sortable' + (on ? " sorted" : "") + (SCOLS[j][2] === "s" ? " l" : "") + '" data-k="' + esc(SCOLS[j][0]) + '"' +
+           (on ? ' aria-sort="' + (secDir < 0 ? "descending" : "ascending") + '"' : "") + ">" +
+           esc(SCOLS[j][1]) + '<span class="ar">' + (on ? (secDir < 0 ? "▼" : "▲") : "↕") + "</span></th>";
+    }
+    document.querySelector("#secttbl thead").innerHTML = h + "</tr>";
+    var out = [];
+    for (i = 0; i < rows.length; i++) {
+      var r = rows[i], line = "<tr>";
+      for (j = 0; j < SCOLS.length; j++) {
+        var k = SCOLS[j][0], t = SCOLS[j][2], cls = (k === secKey ? "sorted" : ""), v = r[k], c;
+        if (t === "s") c = '<a href="#result" class="go secgo" data-s="' + esc(v) + '">' + esc(v) + "</a>";
+        else if (t === "bar") {
+          var w = (v === null || !mx) ? 0 : Math.min(50, Math.abs(v) / mx * 50);
+          c = '<span class="bc"><span class="bt"><i class="' + (v < 0 ? "n" : "p") + '" style="width:' + w.toFixed(1) + '%"></i></span>' + pct(v) + "</span>";
+          cls += " v5";
+        }
+        else if (t === "pct") c = pct(v);
+        else if (t === "usd") c = v === null ? '<span class="na">-</span>' : fmtUsd(v);
+        else if (t === "ratio") c = r["MA20위"] + "/" + r["코인수"];
+        else c = v ? String(v) : '<span class="na">0</span>';
+        line += '<td class="' + (t === "s" ? "l " : "") + cls + '">' + c + "</td>";
+      }
+      out.push(line + "</tr>");
+    }
+    document.querySelector("#secttbl tbody").innerHTML = out.join("");
+    $("n-sector").textContent = rows.length;
+  }
+
+  // ---------- 종목별 결과표 ----------
+  function buildTableHead(){
+    var hr = document.querySelector("#rtbl tr.h"), fr = document.querySelector("#rtbl tr.f");
+    for (var i = 0; i < COLS.length; i++) {
+      var c = COLS[i];
+      var th = document.createElement("th");
+      th.className = "sortable" + (isNum(c[1]) ? "" : " l");
+      th.setAttribute("data-k", c[0]);
+      th.innerHTML = esc(c[0]) + '<span class="ar">↕</span>';
+      hr.appendChild(th);
+      var tf = document.createElement("th");
+      if (isNum(c[1])) {
+        tf.innerHTML = '<input class="num" type="number" step="any" placeholder="최소" data-k="' + c[0] + '" data-m="min">' +
+                       '<input class="num" type="number" step="any" placeholder="최대" data-k="' + c[0] + '" data-m="max">';
+      }
+      fr.appendChild(tf);
+    }
+    hr.addEventListener("click", function(e){
+      var t = e.target;
+      while (t && t !== hr && t.tagName !== "TH") t = t.parentNode;
+      if (!t || t === hr) return;
+      var key = t.getAttribute("data-k");
+      if (sortKey === key) sortDir = -sortDir;
+      else { sortKey = key; sortDir = TEXT_KEYS.test(key) ? 1 : -1; }
+      applyFilter();
+    });
+  }
+
+  function stickFilterRow(){
+    var h = document.querySelector("#rtbl tr.h").offsetHeight;
+    var fs = document.querySelectorAll("#rtbl tr.f th");
+    for (var j = 0; j < fs.length; j++) fs[j].style.top = h + "px";
+  }
+
+  function cell(c, v, r, cls){
+    var t = c[1], k = cls ? ' class="' + cls + '"' : "", kl = ' class="l' + (cls ? " " + cls : "");
+    if (v === null || v === undefined || v === "") return "<td" + (t === "s" ? kl + '"' : k) + '><span class="na">-</span></td>';
+    if (t === "price") return "<td" + k + ">" + fmtPrice(v) + "</td>";
+    if (t === "usd") return "<td" + k + ">" + fmtUsd(v) + "</td>";
+    if (t === "x") return "<td" + k + ">" + v.toFixed(1) + "</td>";
+    if (t === "pct") return "<td" + k + ">" + pct(v) + "</td>";
+    if (c[0] === "추세선") {
+      if (v === "저항선 돌파") return "<td" + kl + '"><span class="b up">' + v + "</span></td>";
+      if (v === "지지선 이탈") return "<td" + kl + '"><span class="b dn">' + v + "</span></td>";
+      return "<td" + kl + ' d">' + esc(v) + "</td>";
+    }
+    if (c[0] === "코인") return "<td" + kl + '"><a class="go nm" href="#c-' + esc(r["심볼"]) + '" data-c="' + esc(r["심볼"]) + '">' + esc(v) + "</a>" +
+                                 (r._top ? ' <span class="b hot" title="바이낸스 24시간 거래대금 순위">' + r._top + "위</span>" : "") + "</td>";
+    if (c[0] === "섹션" || c[0] === "설명") return "<td" + kl + ' d e" title="' + esc(v) + '">' + esc(v) + "</td>";
+    return "<td" + kl + ' d">' + esc(v) + "</td>";
+  }
+
+  function applyFilter(){
+    if (!S) return;
+    var DATA = S.rows;
+    var text = $("q").value.replace(/^\s+|\s+$/g, "").toLowerCase();
+    var sec = $("fsec").value, tr = $("ftr").value, toponly = $("toponly").checked;
+    var rng = [], ins = document.querySelectorAll("#rtbl input.num"), j, k;
+    for (j = 0; j < ins.length; j++) {
+      if (ins[j].value !== "" && !isNaN(parseFloat(ins[j].value)))
+        rng.push([ins[j].getAttribute("data-k"), ins[j].getAttribute("data-m"), parseFloat(ins[j].value)]);
+    }
+    var rows = [];
+    for (j = 0; j < DATA.length; j++) {
+      var r = DATA[j], ok = true;
+      if (toponly && !r._top) continue;
+      if (sec && r["섹션"] !== sec) continue;
+      if (tr && r["추세선"] !== tr) continue;
+      if (text && (r["코인"] + " " + r["심볼"] + " " + r["설명"] + " " + r["섹션"]).toLowerCase().indexOf(text) < 0) continue;
+      for (k = 0; k < rng.length; k++) {
+        var v = r[rng[k][0]];
+        if (v === null || v === undefined) { ok = false; break; }
+        if (rng[k][1] === "min" && v < rng[k][2]) { ok = false; break; }
+        if (rng[k][1] === "max" && v > rng[k][2]) { ok = false; break; }
+      }
+      if (ok) rows.push(r);
+    }
+    if (sortKey) rows.sort(function(a, b){ return cmp(a[sortKey], b[sortKey], sortDir); });
+    var out = [];
+    for (j = 0; j < rows.length; j++) {
+      var line = '<tr data-c="' + esc(rows[j]["심볼"]) + '">';
+      for (var m = 0; m < COLS.length; m++) line += cell(COLS[m], rows[j][COLS[m][0]], rows[j], COLS[m][0] === sortKey ? "sorted" : "");
+      out.push(line + "</tr>");
+    }
+    document.querySelector("#rtbl tbody").innerHTML = out.join("");
+    $("cnt").innerHTML = "표시 <b>" + rows.length + "</b> / 전체 " + DATA.length;
+    $("n-result").textContent = rows.length;
+    var ths = document.querySelectorAll("#rtbl tr.h th");
+    for (j = 0; j < ths.length; j++) {
+      var on = ths[j].getAttribute("data-k") === sortKey;
+      ths[j].classList.toggle("sorted", on);
+      ths[j].querySelector(".ar").innerHTML = on ? (sortDir < 0 ? "▼" : "▲") : "↕";
+    }
+  }
+
+  function fillSectionSelects(){
+    var keep = $("fsec").value, seen = {}, i;
+    var o1 = '<option value="">섹션 전체</option>', o2 = '<option value="">섹션으로 이동…</option>';
+    for (i = 0; i < S.rows.length; i++) {                 // 결과표 필터: 실제 행에 있는 섹션 (목록 외 포함)
+      var sn = S.rows[i]["섹션"];
+      if (!seen[sn]) { seen[sn] = 1; o1 += "<option>" + esc(sn) + "</option>"; }
+    }
+    for (i = 0; i < S.sections.length; i++) o2 += '<option value="s' + i + '">' + esc(S.sections[i].name) + "</option>";
+    $("fsec").innerHTML = o1; $("jump").innerHTML = o2;
+    $("fsec").value = keep;
+  }
+
+  // ---------- 차트 ----------
+  function renderCharts(){
+    var by = {}, inCurated = {}, i, j, r, sec;
+    for (i = 0; i < S.rows.length; i++) by[S.rows[i]["심볼"]] = S.rows[i];
+    for (i = 0; i < S.sections.length; i++)
+      if (!S.sections[i].auto) for (j = 0; j < S.sections[i].codes.length; j++) inCurated[S.sections[i].codes[j]] = 1;
+    var v = S.meta.build_id, h = "";
+    for (i = 0; i < S.sections.length; i++) {
+      sec = S.sections[i];
+      var rows = [];
+      for (j = 0; j < sec.codes.length; j++) if (by[sec.codes[j]]) rows.push(by[sec.codes[j]]);
+      if (!rows.length) continue;
+      var a1 = 0, a7 = 0, a30 = 0, n1 = 0, n7 = 0, n30 = 0;
+      for (j = 0; j < rows.length; j++) {
+        r = rows[j];
+        if (r["1일%"] !== null) { a1 += r["1일%"]; n1++; }
+        if (r["7일%"] !== null) { a7 += r["7일%"]; n7++; }
+        if (r["30일%"] !== null) { a30 += r["30일%"]; n30++; }
+      }
+      h += '<div class="csec" id="s' + i + '"><h3>' + esc(sec.name) + '</h3><p class="sub">' +
+           (sec.auto ? "바이낸스 USDT 마켓 24시간 거래대금 순 (스테이블코인 제외) · " : "") +
+           '평균 1일 ' + pct(n1 ? a1 / n1 : null, "%") + ' · 7일 ' + pct(n7 ? a7 / n7 : null, "%") +
+           ' · 30일 ' + pct(n30 ? a30 / n30 : null, "%") + '</p><div class="grid">';
+      for (j = 0; j < rows.length; j++) {
+        r = rows[j];
+        // 같은 코인이 자동 섹션과 테마 섹션에 둘 다 있으면, '차트로 이동'은 테마 섹션 쪽으로
+        var cid = (!sec.auto || !inCurated[r["심볼"]]) ? ' id="c-' + esc(r["심볼"]) + '"' : "";
+        var flags = "";
+        if (r._top) flags += ' <span class="b hot">거래대금 ' + r._top + '위</span>';
+        if (r["추세선"] === "저항선 돌파") flags += ' <span class="b up">저항선 돌파</span>';
+        if (r["추세선"] === "지지선 이탈") flags += ' <span class="b dn">지지선 이탈</span>';
+        if (r["거래량배수"] !== null && r["거래량배수"] >= 2) flags += ' <span class="b hot">거래량 ' + r["거래량배수"].toFixed(1) + '배</span>';
+        if (r["마지막일"] && r["마지막일"] < S.meta.candle_date) flags += ' <span class="b" style="color:var(--up)">⚠ 마지막 거래 ' + esc(r["마지막일"]) + '</span>';
+        h += '<div class="cell"' + cid + '><div class="cap"><b>' + esc(r["코인"]) + '</b> <span class="c">' + esc(r["심볼"]) +
+             '</span> – <span class="ds">' + esc(r["설명"]) + '</span> &nbsp;' + pct(r["1일%"], "%") + flags + '</div>' +
+             '<img loading="lazy" alt="' + esc(r["코인"]) + ' 차트" src="charts/' + encodeURIComponent(r["심볼"]) + '.png?v=' + v + '"></div>';
+      }
+      h += "</div></div>";
+    }
+    $("chartbox").innerHTML = h;
+    $("n-charts").textContent = S.rows.length;
+  }
+
+  function renderFoot(){
+    var m = S.meta, h = "", i;
+    if ((m.missing || []).length) {
+      h += "<b>점검 메모 — 바이낸스·크라켄 모두에 마켓이 없는 코인</b> (coins.py에서 빼거나 심볼 확인)<ul>";
+      for (i = 0; i < m.missing.length; i++) h += "<li>" + esc(m.missing[i].code) + " " + esc(m.missing[i].name) + " — " + esc(m.missing[i].error) + "</li>";
+      h += "</ul>";
+    }
+    if ((m.failed || []).length) {
+      h += "<b>점검 메모 — 데이터를 받지 못한 코인</b> (일시적 오류일 수 있음)<ul>";
+      for (i = 0; i < m.failed.length; i++) h += "<li>" + esc(m.failed[i].code) + " " + esc(m.failed[i].name) + " — " + esc(m.failed[i].error) + "</li>";
+      h += "</ul>";
+    }
+    if (m.top_note) h += "<p>※ " + esc(m.top_note) + "</p>";
+    var src = m.sources || {};
+    h += "데이터: 바이낸스 현물 USDT " + (src.BINANCE || 0) + "개 · 크라켄 USD " + (src.KRAKEN || 0) + "개" +
+         (m.binance && !m.binance.ok ? " (바이낸스 " + esc(m.binance.why) + " → 크라켄 사용)" : "") +
+         " · 일봉 기준 UTC 00:00(한국 09:00)" +
+         (m.live ? " · 진행 중 일봉의 거래대금·거래량배수는 하루가 덜 쌓인 값" : "") +
+         " · 이동평균 " + (m.ma || []).join("·") + " · 빌드 " + m.build_seconds + "초" +
+         (m.repo ? ' · <a href="https://github.com/' + esc(m.repo) + '/actions" target="_blank" rel="noopener">실행 기록</a>' : "");
+    $("foot").innerHTML = h;
+  }
+
+  function renderAll(){
+    renderMeta(); renderSector(); fillSectionSelects(); applyFilter(); renderCharts(); renderFoot();
+    $("loading").style.display = "none";
+    for (var i = 0; i < SECTIONS.length; i++) $(SECTIONS[i]).style.display = "";
+    $("foot").style.display = "";
+    stickFilterRow(); setOffsets(); hideBack(); spy();
+  }
+
+  // ---------- 종목 → 차트 이동 / 결과표로 돌아가기 ----------
+  var backPos = null;   // { y: 페이지 스크롤, box: 결과표 내부 스크롤, code: 종목코드 }
+  try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (e) {}
+
+  function showBack(){ $("backbtn").classList.add("on"); }
+  function hideBack(){ $("backbtn").classList.remove("on"); }
+
+  function jumpToChart(code, push){
+    var el = $("c-" + code);
+    if (!el) return;
+    backPos = { y: window.pageYOffset, box: $("tbox").scrollTop, code: code };
+    if (push) { try { history.pushState({ krsc: "chart", code: code }, "", "#c-" + code); } catch (e) {} }
+    el.scrollIntoView();
+    restartAnim(el, "flash");
+    showBack();
+    spy();
+  }
+  function restoreBack(){
+    if (!backPos) { hideBack(); return; }
+    var p = backPos;
+    backPos = null; hideBack();
+    $("tbox").scrollTop = p.box;
+    window.scrollTo(0, p.y);
+    restartAnim(document.querySelector('#rtbl tr[data-c="' + p.code + '"]'), "flash");
+    spy();
+  }
+  $("goback").addEventListener("click", function(){
+    if (history.state && history.state.krsc === "chart") history.back();   // 기록도 함께 되돌림 → popstate에서 복원
+    else restoreBack();
+  });
+  $("backx").addEventListener("click", function(){ backPos = null; hideBack(); });
+  window.addEventListener("popstate", function(e){
+    if (e.state && e.state.krsc === "chart") jumpToChart(e.state.code, false);   // 앞으로 가기
+    else if (backPos) restoreBack();                                             // 뒤로 가기(휴대폰 뒤로 제스처 포함)
+  });
+  document.querySelector("#rtbl tbody").addEventListener("click", function(e){
+    var a = e.target;
+    while (a && a.tagName !== "A" && a !== this) a = a.parentNode;
+    if (!a || a === this || !a.getAttribute("data-c")) return;
+    e.preventDefault();
+    jumpToChart(a.getAttribute("data-c"), true);
+  });
+
+  // ---------- 업데이트 버튼 (GitHub Actions 실행 요청) ----------
+  var memTok = "";   // 브라우저 저장소를 못 쓰는 환경(사생활 보호 모드 등)에서는 이 탭에서만 기억
+  function getTok(){ try { return localStorage.getItem(TOKEN_KEY) || memTok; } catch (e) { return memTok; } }
+  function setTok(t){
+    memTok = t || "";
+    try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    showTokLink();
+  }
+  function showTokLink(){ $("tokreset").style.display = getTok() ? "" : "none"; setOffsets(); }
+
+  function status(text, kind, url){
+    var el = $("status");
+    el.className = "status on " + (kind || "run");
+    $("stxt").innerHTML = esc(text) + (url ? ' <a href="' + esc(url) + '" target="_blank" rel="noopener">실행 기록</a>' : "");
+    setOffsets();
+  }
+  function finish(text, kind, url){
+    busy = false; $("upd").disabled = false;
+    status(text, kind, url);
+  }
+
+  function gh(method, path, body, cb){
+    var x = new XMLHttpRequest();
+    x.open(method, "https://api.github.com" + path, true);
+    x.setRequestHeader("Accept", "application/vnd.github+json");
+    x.setRequestHeader("X-GitHub-Api-Version", "2022-11-28");
+    var tok = getTok();
+    if (tok) x.setRequestHeader("Authorization", "Bearer " + tok);
+    if (body) x.setRequestHeader("Content-Type", "application/json");
+    x.onreadystatechange = function(){ if (x.readyState === 4) cb(x.status, x.responseText); };
+    x.send(body ? JSON.stringify(body) : null);
+  }
+  function parse(t){ try { return JSON.parse(t); } catch (e) { return null; } }
+
+  function requestUpdate(){
+    if (busy) return;
+    if (!S || !S.meta.repo) { status("저장소 정보가 없습니다 (GitHub에서 한 번 실행된 뒤 사용 가능)", "err"); return; }
+    if (!getTok()) {
+      var t = window.prompt("GitHub 토큰을 붙여넣으세요.\n(fine-grained 토큰 · 이 저장소 · Actions: Read and write)\n이 기기의 브라우저에만 저장됩니다.");
+      if (!t) return;
+      setTok(t.replace(/^\s+|\s+$/g, ""));
+    }
+    busy = true; $("upd").disabled = true;
+    status("업데이트 요청 중…", "run");
+    var since = now();
+    gh("POST", "/repos/" + S.meta.repo + "/actions/workflows/" + S.meta.workflow + "/dispatches", { ref: S.meta.branch || "main" }, function(st, txt){
+      if (st === 200 || st === 204) {
+        var j = parse(txt);
+        status("요청 완료 · 실행 준비 중…", "run", j && j.html_url);
+        watchRun(j && j.workflow_run_id, since);
+      } else if (st === 401) {
+        setTok("");
+        finish("토큰이 올바르지 않거나 만료되었습니다. 다시 눌러 새 토큰을 입력하세요.", "err");
+      } else if (st === 403 || st === 404) {
+        // 주식 차트와 같은 브라우저 저장소를 쓰므로 토큰을 지우지 않음 (주식 쪽은 계속 동작)
+        finish("이 토큰에 '" + S.meta.repo + "' 저장소의 Actions 쓰기 권한이 없습니다. GitHub 토큰 설정에서 이 저장소를 추가하세요.", "err");
+      } else if (st === 0) {
+        finish("GitHub에 연결하지 못했습니다. 네트워크를 확인하세요.", "err");
+      } else {
+        finish("요청 실패 (HTTP " + st + ")", "err");
+      }
+    });
+  }
+
+  // 실행 상태 추적 → 성공하면 새 데이터가 올라올 때까지 기다렸다가 화면 갱신
+  function watchRun(runId, since){
+    var t0 = now(), url = null;
+    function again(){
+      if (now() - t0 > 25 * 60000) return finish("시간 초과 — 실행 기록을 확인하세요.", "err", url);
+      setTimeout(tick, 8000);
+    }
+    function onRun(r){
+      url = r.html_url;
+      if (r.status !== "completed") {
+        status((r.status === "queued" || r.status === "waiting" || r.status === "pending" ? "실행 대기 중" : "데이터 수집·차트 생성 중") +
+               " · " + mmss(now() - t0) + " (보통 3~5분)", "run", url);
+        return again();
+      }
+      if (r.conclusion === "success") return waitDeploy(url);
+      finish("업데이트 실패 (" + r.conclusion + ")", "err", url);
+    }
+    function tick(){
+      if (runId) {
+        gh("GET", "/repos/" + S.meta.repo + "/actions/runs/" + runId, null, function(st, txt){
+          var r = st === 200 ? parse(txt) : null;
+          if (r) onRun(r); else again();
+        });
+      } else {
+        gh("GET", "/repos/" + S.meta.repo + "/actions/workflows/" + S.meta.workflow + "/runs?per_page=5", null, function(st, txt){
+          var j = st === 200 ? parse(txt) : null, runs = (j && j.workflow_runs) || [];
+          for (var i = 0; i < runs.length; i++) {
+            if (Date.parse(runs[i].created_at) >= since - 90000) { runId = runs[i].id; return onRun(runs[i]); }
+          }
+          status("실행 대기 중 · " + mmss(now() - t0), "run");
+          again();
+        });
+      }
+    }
+    tick();
+  }
+
+  function waitDeploy(url){
+    var oldId = S.meta.build_id, t0 = now();
+    status("페이지 반영 중… (보통 1~2분)", "run", url);
+    (function chk(){
+      loadSummary(function(d){
+        if (d && d.meta && d.meta.build_id !== oldId) {
+          S = d; renderAll();
+          finish("업데이트 완료 · " + d.meta.updated_at, "ok");
+        } else if (now() - t0 > 8 * 60000) {
+          finish("실행은 끝났지만 페이지 반영이 늦습니다. 잠시 후 새로고침하세요.", "warn", url);
+        } else setTimeout(chk, 10000);
+      });
+    })();
+  }
+
+  // 페이지를 열었을 때 이미 실행 중인 업데이트(자동 포함)가 있으면 이어서 표시
+  function resumeIfRunning(){
+    if (!S || !S.meta.repo) return;
+    gh("GET", "/repos/" + S.meta.repo + "/actions/workflows/" + S.meta.workflow + "/runs?per_page=1", null, function(st, txt){
+      var j = st === 200 ? parse(txt) : null, r = j && j.workflow_runs && j.workflow_runs[0];
+      if (r && r.status !== "completed" && now() - Date.parse(r.created_at) < 40 * 60000) {
+        busy = true; $("upd").disabled = true;
+        status((r.event === "schedule" ? "자동" : "수동") + " 업데이트 진행 중…", "run", r.html_url);
+        watchRun(r.id, Date.parse(r.created_at));
+      }
+    });
+  }
+
+  // ---------- 시작 ----------
+  buildTableHead();
+  var ctrls = ["q", "fsec", "ftr", "toponly"];
+  for (var i = 0; i < ctrls.length; i++) {
+    $(ctrls[i]).addEventListener("input", applyFilter);
+    $(ctrls[i]).addEventListener("change", applyFilter);
+  }
+  document.querySelector("#rtbl tr.f").addEventListener("input", applyFilter);
+  $("freset").addEventListener("click", function(){
+    var ins = document.querySelectorAll("#rtbl input.num");
+    for (var j = 0; j < ins.length; j++) ins[j].value = "";
+    $("q").value = ""; $("fsec").value = ""; $("ftr").value = ""; $("toponly").checked = false;
+    sortKey = null; sortDir = -1; applyFilter();
+  });
+  $("jump").addEventListener("change", function(){
+    var el = $(this.value); if (el) el.scrollIntoView(); this.value = "";
+  });
+  $("tabs").addEventListener("click", function(e){
+    var t = e.target;
+    while (t && t !== this && !t.getAttribute("data-t")) t = t.parentNode;
+    if (t && t !== this) goSection(t.getAttribute("data-t"));
+  });
+  document.querySelector("#secttbl thead").addEventListener("click", function(e){
+    var t = e.target;
+    while (t && t !== this && t.tagName !== "TH") t = t.parentNode;
+    if (!t || t === this) return;
+    var key = t.getAttribute("data-k");
+    if (secKey === key) secDir = -secDir;
+    else { secKey = key; secDir = key === "섹션" ? 1 : -1; }
+    renderSector();
+  });
+  document.querySelector("#secttbl tbody").addEventListener("click", function(e){
+    var a = e.target;
+    while (a && a !== this && !(a.classList && a.classList.contains("secgo"))) a = a.parentNode;
+    if (!a || a === this) return;
+    e.preventDefault();
+    $("fsec").value = a.getAttribute("data-s"); applyFilter();
+    $("tbox").scrollTop = 0;
+    goSection("result");
+  });
+  $("upd").addEventListener("click", requestUpdate);
+  $("tokreset").addEventListener("click", function(){
+    if (window.confirm("이 기기에 저장된 GitHub 토큰을 지울까요? 다음 업데이트 때 다시 입력합니다.")) setTok("");
+  });
+  showTokLink();
+  window.addEventListener("resize", function(){ stickFilterRow(); setOffsets(); spy(); });
+  window.addEventListener("scroll", onScroll, { passive: true });
+  setOffsets();
+
+  loadSummary(function(d){
+    if (!d) { $("loading").innerHTML = "데이터가 아직 없습니다. GitHub Actions에서 첫 실행을 마친 뒤 새로고침하세요."; return; }
+    S = d;
+    renderAll();
+    var m = /^#c-(.+)$/.exec(location.hash);          // 주소에 종목 위치가 있으면 그 차트로
+    if (m && $("c-" + m[1])) $("c-" + m[1]).scrollIntoView();
+    resumeIfRunning();
+  });
+})();
+</script>
+</body>
+</html>
